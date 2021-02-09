@@ -20,7 +20,7 @@ set -e -o pipefail
 # set some variables used below
 BINARY_NAME=$1
 VERSION=$2
-SOURCE_DIR=$(pwd)
+BINARY_DIR=$(pwd)/$3
 
 
 function cleanup() {
@@ -54,7 +54,7 @@ grep -A100 '%BOTTLE%' ${BINARY_NAME}.rb.bottle | grep -v '%BOTTLE%' > ${BINARY_N
 cat ${BINARY_NAME}.rb.bottle.head ${BINARY_NAME}.rb.bottle.tail > ${BINARY_NAME}.rb
 
 # change back to original workdir
-cd $SOURCE_DIR
+cd $BINARY_DIR
 # build the bottle
 brew test-bot allcloud-io/tools/${BINARY_NAME}
 

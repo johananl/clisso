@@ -11,8 +11,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// TODO Get rid of these global variables.
 // Common
-var provider string
+var pName string
 var duration int
 
 // OneLogin
@@ -24,13 +25,13 @@ var URL string
 func init() {
 	// OneLogin
 	cmdAppsCreateOneLogin.Flags().StringVar(&appID, "app-id", "", "OneLogin app ID")
-	cmdAppsCreateOneLogin.Flags().StringVar(&provider, "provider", "", "Name of the Clisso provider")
+	cmdAppsCreateOneLogin.Flags().StringVar(&pName, "provider", "", "Name of the Clisso provider")
 	cmdAppsCreateOneLogin.Flags().IntVar(&duration, "duration", 0, "(Optional) Session duration in seconds")
 	cmdAppsCreateOneLogin.MarkFlagRequired("app-id")
 	cmdAppsCreateOneLogin.MarkFlagRequired("provider")
 
 	// Okta
-	cmdAppsCreateOkta.Flags().StringVar(&provider, "provider", "", "Name of the Clisso provider")
+	cmdAppsCreateOkta.Flags().StringVar(&pName, "provider", "", "Name of the Clisso provider")
 	cmdAppsCreateOkta.Flags().StringVar(&URL, "url", "", "Okta app URL")
 	cmdAppsCreateOkta.Flags().IntVar(&duration, "duration", 0, "(Optional) Session duration in seconds")
 	cmdAppsCreateOkta.MarkFlagRequired("provider")
@@ -102,12 +103,12 @@ var cmdAppsCreateOneLogin = &cobra.Command{
 		}
 
 		// Verify provider exists
-		if exists := viper.Get("providers." + provider); exists == nil {
-			log.Fatalf(color.RedString("Provider '%s' doesn't exist"), provider)
+		if exists := viper.Get("providers." + pName); exists == nil {
+			log.Fatalf(color.RedString("Provider '%s' doesn't exist"), pName)
 		}
 
 		// Verify provider type
-		pType := viper.GetString(fmt.Sprintf("providers.%s.type", provider))
+		pType := viper.GetString(fmt.Sprintf("providers.%s.type", pName))
 		if pType != "onelogin" {
 			log.Fatalf(
 				color.RedString("Invalid provider type '%s' for a OneLogin app. Type must be 'onelogin'."),
@@ -117,7 +118,7 @@ var cmdAppsCreateOneLogin = &cobra.Command{
 
 		conf := map[string]string{
 			"app-id":   appID,
-			"provider": provider,
+			"provider": pName,
 		}
 
 		if duration != 0 {
@@ -153,12 +154,12 @@ var cmdAppsCreateOkta = &cobra.Command{
 		}
 
 		// Verify provider exists
-		if exists := viper.Get("providers." + provider); exists == nil {
-			log.Fatalf(color.RedString("Provider '%s' doesn't exist"), provider)
+		if exists := viper.Get("providers." + pName); exists == nil {
+			log.Fatalf(color.RedString("Provider '%s' doesn't exist"), pName)
 		}
 
 		// Verify provider type
-		pType := viper.GetString(fmt.Sprintf("providers.%s.type", provider))
+		pType := viper.GetString(fmt.Sprintf("providers.%s.type", pName))
 		if pType != "okta" {
 			log.Fatalf(
 				color.RedString("Invalid provider type '%s' for an Okta app. Type must be 'okta'."),
@@ -167,7 +168,7 @@ var cmdAppsCreateOkta = &cobra.Command{
 		}
 
 		conf := map[string]string{
-			"provider": provider,
+			"provider": pName,
 			"url":      URL,
 		}
 

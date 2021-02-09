@@ -1,11 +1,5 @@
 package keychain
 
-import (
-	"fmt"
-
-	"github.com/howeyc/gopass"
-)
-
 const (
 	// KeyChainName is the name of the keychain used to store
 	// passwords
@@ -34,15 +28,11 @@ func (DefaultKeychain) Set(provider string, password []byte) (err error) {
 // If any error occours while talking to the keychain provider, we silently swallow it
 // and just ask the user for the password instead. Error could be anything from access denied to
 // password not found.
+// TODO: Move password prompt out of this function.
 func (DefaultKeychain) Get(provider string) (pw []byte, err error) {
 	pass, err := get(provider)
 	if err != nil {
-		// If we ever implement a logfile we might want to log what error occurred.
-		fmt.Printf("Please enter %s password: ", provider)
-		pass, err = gopass.GetPasswd()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't read password from terminal")
-		}
+		return nil, err
 	}
 	return pass, nil
 }

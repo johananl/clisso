@@ -8,17 +8,24 @@ import (
 	"runtime"
 
 	"github.com/fatih/color"
+	"github.com/howeyc/gopass"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/allcloud-io/clisso/aws"
-	"github.com/allcloud-io/clisso/okta"
-	"github.com/allcloud-io/clisso/onelogin"
+	"github.com/allcloud-io/clisso/config"
+	"github.com/allcloud-io/clisso/keychain"
+	"github.com/allcloud-io/clisso/platform/aws"
+	"github.com/allcloud-io/clisso/provider"
+	"github.com/allcloud-io/clisso/provider/okta"
+	"github.com/allcloud-io/clisso/provider/onelogin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var printToShell bool
-var writeToFile string
+var (
+	keyChain     = keychain.DefaultKeychain{}
+	printToShell bool
+	writeToFile  string
+)
 
 func init() {
 	RootCmd.AddCommand(cmdGet)
@@ -65,16 +72,18 @@ func processCredentials(creds *aws.Credentials, app string) error {
 
 // sessionDuration returns a session duration using the following order of preference:
 // app.duration -> provider.duration -> hardcoded default of 3600
-func sessionDuration(app, provider string) int64 {
-	a := viper.GetInt64(fmt.Sprintf("apps.%s.duration", app))
-	p := viper.GetInt64(fmt.Sprintf("providers.%s.duration", provider))
+func sessionDuration(app string) int64 {
+	p := config.ProviderForApp(app)
 
-	if a != 0 {
-		return a
+	ad := config.AppDuration(app)
+	pd := config.ProviderDuration(p)
+
+	if ad != 0 {
+		return ad
 	}
 
-	if p != 0 {
-		return p
+	if pd != 0 {
+		return pd
 	}
 
 	return 3600
@@ -89,54 +98,91 @@ temporary credentials from the cloud provider.
 
 If no app is specified, the selected app (if configured) will be assumed.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var app string
+		var appName string
 		if len(args) == 0 {
 			// No app specified.
-			selected := viper.GetString("global.selected-app")
+			selected := config.SelectedApp()
 			if selected == "" {
 				// No default app configured.
-				log.Fatal(color.RedString("No app specified and no default app configured"))
+				log.Fatal(color.RedString("No app specified and no app selected"))
 			}
-			app = selected
+			appName = selected
 		} else {
 			// App specified - use it.
-			app = args[0]
+			appName = args[0]
 		}
 
-		provider := viper.GetString(fmt.Sprintf("apps.%s.provider", app))
-		if provider == "" {
-			log.Fatalf(color.RedString("Could not get provider for app '%s'"), app)
+		if pName := config.ProviderForApp(appName); pName == "" {
+			log.Fatalf(color.RedString("Could not get provider for app %q"), appName)
 		}
 
-		pType := viper.GetString(fmt.Sprintf("providers.%s.type", provider))
+		pType := config.ProviderType(pName)
 		if pType == "" {
-			log.Fatalf(color.RedString("Could not get provider type for provider '%s'"), provider)
+			log.Fatalf(color.RedString("Could not get provider type for provider %q"), pName)
 		}
 
-		duration := sessionDuration(app, provider)
+		duration := sessionDuration(appName)
 
-		if pType == "onelogin" {
-			creds, err := onelogin.Get(app, provider, duration)
+		var p provider.Provider
+		var app provider.App
+
+		switch pType {
+		case provider.OneLogin:
+			pc, err := onelogin.NewProviderConfig(pName)
 			if err != nil {
-				log.Fatal(color.RedString("Could not get temporary credentials: "), err)
+				log.Fatalf(color.RedString("Error creating provider config: %s"), err.Error())
 			}
-			// Process credentials
-			err = processCredentials(creds, app)
+
+			p, err = onelogin.New(pName, pc)
 			if err != nil {
-				log.Fatalf(color.RedString("Error processing credentials: %v"), err)
+				log.Fatalf(color.RedString("Error creating provider: %s"), err.Error())
 			}
-		} else if pType == "okta" {
-			creds, err := okta.Get(app, provider, duration)
+
+			app, err = onelogin.NewApp(appName)
 			if err != nil {
-				log.Fatal(color.RedString("Could not get temporary credentials: "), err)
+				log.Fatalf(color.RedString("Error creating app: %s"), err.Error())
 			}
-			// Process credentials
-			err = processCredentials(creds, app)
+		case provider.Okta:
+			pc, err := okta.NewProviderConfig(pName)
 			if err != nil {
-				log.Fatalf(color.RedString("Error processing credentials: %v"), err)
+				log.Fatalf(color.RedString("Error reading provider config: %s"), err.Error())
 			}
-		} else {
+
+			p, err = okta.New(pName, pc)
+			if err != nil {
+				log.Fatalf(color.RedString("Error creating provider: %s"), err.Error())
+			}
+
+			app, err = okta.NewApp(appName)
+			if err != nil {
+				log.Fatalf(color.RedString("Error creating app: %s"), err.Error())
+			}
+		default:
 			log.Fatalf(color.RedString("Unsupported identity provider type '%s' for app '%s'"), pType, app)
+		}
+
+		user := p.Username()
+		if user == "" {
+			fmt.Printf("%s username: ", p.Type())
+			fmt.Scanln(&user)
+		}
+		pass, err := keyChain.Get(pName)
+		if err != nil {
+			fmt.Printf("%s password: ", p.Type())
+			pass, err = gopass.GetPasswd()
+			if err != nil {
+				log.Fatalf(color.RedString("Could not read password from terminal: %v"), err)
+			}
+		}
+
+		creds, err := p.Get(user, string(pass), app, duration)
+		if err != nil {
+			log.Fatal(color.RedString("Could not get temporary credentials: "), err)
+		}
+		// Process credentials
+		err = processCredentials(creds, appName)
+		if err != nil {
+			log.Fatalf(color.RedString("Error processing credentials: %v"), err)
 		}
 	},
 }

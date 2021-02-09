@@ -1,5 +1,5 @@
 .idea
-clisso*
+build/
 tmp
 vendor
 *.zip
