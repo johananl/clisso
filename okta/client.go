@@ -38,16 +38,18 @@ type GetSessionTokenResponse struct {
 	StateToken   string    `json:"stateToken"`
 	Status       string    `json:"status"`
 	Embedded     struct {
-		Factors []struct {
-			ID    string `json:"id"`
-			Links struct {
-				Verify struct {
-					Href string `json:"href"`
-				} `json:"verify"`
-			} `json:"_links"`
-			FactorType string `json:"factorType"`
-		} `json:"factors"`
+		Factors []factor `json:"factors"`
 	} `json:"_embedded"`
+}
+
+type factor struct {
+	ID    string `json:"id"`
+	Links struct {
+		Verify struct {
+			Href string `json:"href"`
+		} `json:"verify"`
+	} `json:"_links"`
+	FactorType string `json:"factorType"`
 }
 
 // GetSessionToken performs a login operation against the Okta API and returns a session token upon

@@ -77,20 +77,22 @@ func GetOneLoginApp(app string) (*OneLoginAppConfig, error) {
 
 // OktaProviderConfig represents an Okta provider configuration.
 type OktaProviderConfig struct {
-	BaseURL  string
-	Username string
+	BaseURL    string
+	Username   string
+	Challenges []string
 }
 
 // GetOktaProvider returns a OktaProviderConfig struct containing the configuration for provider p.
 func GetOktaProvider(p string) (*OktaProviderConfig, error) {
 	baseURL := viper.GetString(fmt.Sprintf("providers.%s.base-url", p))
 	username := viper.GetString(fmt.Sprintf("providers.%s.username", p))
+	challenges := viper.GetStringSlice(fmt.Sprintf("providers.%s.challenges", p))
 
 	if baseURL == "" {
 		return nil, errors.New("base-url config value must bet set")
 	}
 
-	return &OktaProviderConfig{BaseURL: baseURL, Username: username}, nil
+	return &OktaProviderConfig{BaseURL: baseURL, Username: username, Challenges: challenges}, nil
 }
 
 // OktaAppConfig represents an Okta app configuration.

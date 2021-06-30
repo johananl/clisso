@@ -252,6 +252,16 @@ The `--url` flag is the app's **embed link**. This can be retrieved as an Okta u
 the URL of an app on the Okta web UI. The same can also be retrieved as an administrator by
 clicking an app in the **Applications** view. The embed link is on the **General** tab.
 
+The `--challenges` flag gives you the option to select which challenges in what order to use. 
+This flag is optional.
+Currently only 2 challenge types are supported:
+
+- push
+- token:software:totp
+
+Clisso will use the challenges in the preference you specified.
+You can make a list by specifiying the flag multiple times like `--challenges push --challenges token:software:totp`
+
 >NOTE: An Okta embed link must not contain an HTTP query, only the base URL. For AWS apps, the link
 should end with `/137`.
 

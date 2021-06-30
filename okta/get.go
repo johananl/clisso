@@ -3,6 +3,7 @@ package okta
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/allcloud-io/clisso/aws"
@@ -80,6 +81,15 @@ func Get(app, provider, pArn string, duration int64) (*aws.Credentials, error) {
 		st = resp.SessionToken
 	case StatusMFARequired:
 		factor := resp.Embedded.Factors[0]
+
+		if len(p.Challenges) > 0 {
+			// use preferred list if available
+			factor, err = preferredFactor(resp.Embedded.Factors, p.Challenges)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		stateToken := resp.StateToken
 
 		var vfResp *VerifyFactorResponse
@@ -165,4 +175,35 @@ func Get(app, provider, pArn string, duration int64) (*aws.Credentials, error) {
 	}
 
 	return creds, err
+}
+
+func typeMapOf(factors []factor) (m map[string]factor) {
+	m = make(map[string]factor)
+
+	for _, v := range factors {
+		m[v.FactorType] = v
+	}
+	return
+}
+
+func keys(m map[string]factor) (keys []string) {
+	keys = make([]string, len(m))
+
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	return
+}
+
+func preferredFactor(factors []factor, pref []string) (factor, error) {
+	fmap := typeMapOf(factors)
+	for _, p := range pref {
+		if f, ok := fmap[p]; ok {
+			return f, nil
+		}
+	}
+
+	return factor{}, fmt.Errorf("no supported MFA type found in: %v", strings.Join(keys(fmap), ","))
 }

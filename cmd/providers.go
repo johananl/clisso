@@ -24,6 +24,7 @@ var providerDuration int
 
 // Okta
 var baseURL string
+var challenges []string
 
 func init() {
 	// OneLogin
@@ -44,6 +45,7 @@ func init() {
 
 	// Okta
 	cmdProvidersCreateOkta.Flags().StringVar(&baseURL, "base-url", "", "Okta base URL")
+	cmdProvidersCreateOkta.Flags().StringArrayVar(&challenges, "challenges", []string{"push", "token:software:totp"}, "Challenges to be used with preference")
 	cmdProvidersCreateOkta.Flags().StringVar(&username, "username", "",
 		"Don't ask for a username and use this instead")
 	cmdProvidersCreateOkta.Flags().IntVar(&providerDuration, "duration", 0, "(Optional) Default session duration in seconds")
@@ -177,10 +179,11 @@ var cmdProvidersCreateOkta = &cobra.Command{
 			log.Fatalf(color.RedString("Provider '%s' already exists"), name)
 		}
 
-		conf := map[string]string{
-			"base-url": baseURL,
-			"type":     "okta",
-			"username": username,
+		conf := map[string]interface{}{
+			"base-url":   baseURL,
+			"type":       "okta",
+			"username":   username,
+			"challenges": challenges,
 		}
 		if providerDuration != 0 {
 			// Duration specified - validate value
